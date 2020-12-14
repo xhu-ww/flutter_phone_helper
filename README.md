@@ -32,8 +32,10 @@
 ![image](./image/04_urlscheme.gif)
 
 ## 3.项目说明
-Flutter Desktop请查看文档：https://flutter.dev/desktop
-项目中用到的设备投屏库为Scrcpy，详情查看：https://github.com/Genymobile/scrcpy
+
+Flutter Desktop Support：https://flutter.dev/desktop
+
+项目中用到的设备投屏库为Scrcpy：https://github.com/Genymobile/scrcpy
 
 ### 3.1 Flutter如何支持桌面版本
 切换channel
