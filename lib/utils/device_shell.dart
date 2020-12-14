@@ -181,5 +181,5 @@ Future<String> _saveScreenFile(String deviceId, String fileName) async {
   await executeShell(pullShell);
   var deleteShell = "adb -s $deviceId shell rm /sdcard/$fileName";
   executeShell(deleteShell);
-  return "$saveFile\\$fileName";
+  return "$saveFile${Platform.pathSeparator}$fileName";
 }

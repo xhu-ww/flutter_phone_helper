@@ -5,7 +5,7 @@ import 'package:flutter_phone_helper/data/shell_result.dart';
 import 'package:process_runner/process_runner.dart';
 
 String adb;
-String tempFilePath;
+Directory storeFolderDirectory;
 Map<String, String> environment;
 const scrcpyPath = "/usr/local/bin/scrcpy";
 const brewPath = "/usr/local/Homebrew/bin/brew";
@@ -14,11 +14,11 @@ Future<void> initADB() async {
   final fileChannel = FileChannel();
   await Future.wait([
     fileChannel.getResourcesADBPath(),
-    fileChannel.getTempFilePathPath(),
+    fileChannel.getStoreFolderPath(),
     readSystemEnvironment(),
   ]).then((value) {
     adb = value[0];
-    tempFilePath = value[1];
+    storeFolderDirectory = value[1];
     environment = {"PATH": "${value[2]}:${File(adb).parent.absolute.path}"};
   });
 }
@@ -59,13 +59,12 @@ Future<ShellResult> downloadScrcpy() {
 }
 
 Future<String> createScreenFile() async {
-  if (tempFilePath?.isEmpty ?? true) {
-    tempFilePath = await FileChannel().getTempFilePathPath();
+  if (storeFolderDirectory == null) {
+    storeFolderDirectory = await FileChannel().getStoreFolderPath();
   }
 
-  var directory = Directory("$tempFilePath\\截屏和录屏");
-  if (!directory.existsSync()) {
-    directory.create();
+  if (!storeFolderDirectory.existsSync()) {
+    storeFolderDirectory.create();
   }
-  return directory.absolute.path;
+  return storeFolderDirectory.absolute.path;
 }

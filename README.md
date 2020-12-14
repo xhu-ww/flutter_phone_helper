@@ -1,8 +1,7 @@
 # AndroidPhoneHelper
-一款辅助操作Android手机的桌面应用，支持macOS、Windows、Linux
+一款辅助操作Android手机的桌面应用，支持macOS、Windows、Linux。
 
-项目代码还未上传，应用以及代码还在另一个仓库中，后续迁移至此仓库
-https://github.com/WenWangAndroid/phone_manager
+目前功能完善的为macOS版本，Windows、linux版本还未适配完成。
 
 ## 1.功能列表
 
@@ -31,3 +30,40 @@ https://github.com/WenWangAndroid/phone_manager
 ### 2.3 快速使用手机打开网页、UrlScheme测试
 
 ![image](./image/04_urlscheme.gif)
+
+## 3.项目说明
+Flutter Desktop请查看文档：https://flutter.dev/desktop
+项目中用到的设备投屏库为Scrcpy，详情查看：https://github.com/Genymobile/scrcpy
+
+### 3.1 Flutter如何支持桌面版本
+切换channel
+```
+flutter channel dev
+flutter upgrade
+```
+开启桌面支持
+
+```
+ flutter config --enable-windows-desktop
+ flutter config --enable-macos-desktop
+ flutter config --enable-linux-desktop
+```
+检测运行环境
+```
+flutter doctor
+```
+
+### 3.2 运行与打包桌面应用
+运行
+```
+ flutter run -d windows
+ flutter run -d macos
+ flutter run -d linux
+```
+
+打包
+```
+ flutter build windows
+ flutter build macos
+ flutter build linux
+```

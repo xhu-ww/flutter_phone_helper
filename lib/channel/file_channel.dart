@@ -14,12 +14,16 @@ class FileChannel {
     }
   }
 
-  Future<String> getTempFilePathPath() async {
+  Future<Directory> getStoreFolderPath() async {
+    var path = "";
     if (Platform.isMacOS) {
-      return channel.invokeMethod<String>('getDesktopPath');
+      var desktop = await channel.invokeMethod<String>('getDesktopPath');
+      path = "$desktop${Platform.pathSeparator}截屏和录屏";
     } else {
-      var temp = await getTemporaryDirectory();
-      return temp.absolute.path;
+      var tempDirectory = await getTemporaryDirectory();
+      path =
+          "${tempDirectory.absolute.path}${Platform.pathSeparator}phone_helper_temp";
     }
+    return Directory(path);
   }
 }
