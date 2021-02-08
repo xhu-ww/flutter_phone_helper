@@ -1,16 +1,15 @@
 import 'dart:async';
 
-import 'package:flutter_phone_helper/data/device.dart';
+import 'package:flutter_phone_helper/process/device.dart';
+import 'package:flutter_phone_helper/process/adb.dart';
 import 'package:flutter_phone_helper/src/colors.dart';
 import 'package:flutter_phone_helper/utils/pair.dart';
 import 'package:flutter_phone_helper/widght/dialogs.dart';
-import 'package:flutter_phone_helper/widght/wdigets.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_phone_helper/utils/device_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_easyrefresh/easy_refresh.dart';
+import 'package:flutter_phone_helper/widght/label_page_selector.dart';
 import 'app_info_widget.dart';
 import 'device_info_widget.dart';
 
@@ -24,8 +23,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Device> _devices;
-  int _currentSelectedIndex = 0;
+  final List<Device> _devices = [];
+  var _leftMenuSelectedIndex = 0;
+  var _rightLabelSelectedIndex = 0;
+  var _pageController = PageController();
 
   final _bgColors = [
     Pair(AppColors.gradient_group_0_left, AppColors.gradient_group_0_right),
@@ -43,12 +44,14 @@ class _HomePageState extends State<HomePage> {
     Timer.periodic(Duration(seconds: 5), (timer) => refresh());
   }
 
-  Future refresh() {
-    return getConnectedDevices().then((value) {
-      if (mounted) {
-        setState(() => _devices = value);
-      }
-    });
+  Future<void> refresh() async {
+    var list = await adb.deviceIds();
+    if (mounted) {
+      setState(() {
+        _devices.clear();
+        _devices.addAll(list);
+      });
+    }
   }
 
   void _addDevice() async {
@@ -74,7 +77,7 @@ class _HomePageState extends State<HomePage> {
       positive: "连接",
       onPositivePressed: () async {
         Navigator.of(context).pop();
-        await connectDeviceByIp(editingController.text.trim());
+        await adb.connectDeviceByIp(editingController.text.trim());
         refresh();
       },
     );
@@ -92,126 +95,145 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    var bgColor = _bgColors[5];
+    var bgColor = _bgColors[0];
 
-    Device currentDevice;
-    if (_devices?.isEmpty ?? true) {
-      _currentSelectedIndex = 0;
+    Device? device;
+    if (_devices.isEmpty) {
+      _leftMenuSelectedIndex = 0;
     } else {
-      if (_currentSelectedIndex >= _devices.length) {
-        _currentSelectedIndex = _devices.length - 1;
+      if (_leftMenuSelectedIndex >= _devices.length) {
+        _leftMenuSelectedIndex = _devices.length - 1;
       }
-      currentDevice = _devices[_currentSelectedIndex];
+      device = _devices[_leftMenuSelectedIndex];
     }
 
     return Scaffold(
       body: GestureDetector(
         onTap: () => FocusScope.of(context).requestFocus(FocusNode()),
-        child: Container(
-          decoration: _createGradientDecoration(bgColor.first),
-          child: Stack(
-            children: [
-              currentDevice == null
-                  ? Center(
-                      child: Text(
-                        "当前无连接的设备。\n左侧区域可下拉刷新设备列表，[+] 按钮可添加设备。",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontSize: 17),
-                      ),
-                    )
-                  : SizedBox(),
-              Row(
+        child: device == null
+            ? Container(
+                alignment: Alignment.center,
+                decoration: _createGradientDecoration(bgColor.first),
+                child: Text(
+                  "当前无连接的设备。\n左侧区域可下拉刷新设备列表，[+] 按钮可添加设备。",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 17),
+                ),
+              )
+            : Row(
                 children: [
                   Expanded(
                     flex: 1,
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 40),
-                        Expanded(
-                          child: EasyRefresh.custom(
-                            header: createIOSHeader(),
-                            onRefresh: refresh,
-                            slivers: <Widget>[
-                              SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) =>
-                                      _buildDeviceItem(_devices[index], index),
-                                  childCount: _devices?.length ?? 0,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          margin: EdgeInsets.only(bottom: 24),
-                          width: double.infinity,
-                          child: IconButton(
-                            icon:
-                                Icon(Icons.add, color: Colors.white, size: 32),
-                            tooltip: "添加设备",
-                            onPressed: () => _addDevice(),
-                          ),
-                        ),
-                      ],
+                    child: Container(
+                      decoration: _createGradientDecoration(bgColor.first),
+                      child: _buildLeftMenu(),
                     ),
                   ),
                   Expanded(
                     flex: 3,
-                    child: currentDevice == null
-                        ? SizedBox()
-                        : Container(
-                            decoration:
-                                _createGradientDecoration(bgColor.second),
-                            child: ListView(
-                              padding: EdgeInsets.all(16),
-                              children: [
-                                DeviceInfoWidget(device: currentDevice),
-                                const SizedBox(height: 16),
-                                AppInfoWidget(device: currentDevice),
+                    child: Container(
+                      decoration: _createGradientDecoration(bgColor.second),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 45.0),
+                          LabelPageSelector(
+                            ['设备详情', 'App详情'],
+                            height: 32.0,
+                            groupValue: _rightLabelSelectedIndex,
+                            borderColor: Colors.white,
+                            selectedColor: AppColors.transparent_gray,
+                            unselectedColor: Colors.transparent,
+                            labelPadding: EdgeInsets.symmetric(horizontal: 32),
+                            onSelectedChanged: (value) {
+                              setState(() {
+                                _rightLabelSelectedIndex = value;
+                              });
+                              _pageController.animateToPage(
+                                value,
+                                duration: Duration(milliseconds: 500),
+                                curve: Curves.ease,
+                              );
+                            },
+                          ),
+                          Expanded(
+                            child: PageView(
+                              controller: _pageController,
+                              onPageChanged: (index) {
+                                setState(() {
+                                  _rightLabelSelectedIndex = index;
+                                });
+                              },
+                              children: <Widget>[
+                                DeviceInfoWidget(device: device),
+                                AppInfoWidget(device: device),
                               ],
                             ),
                           ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ],
+      ),
+    );
+  }
+
+  Widget _buildLeftMenu() {
+    return RefreshIndicator(
+      onRefresh: refresh,
+      child: Column(
+        children: [
+          const SizedBox(height: 45.0),
+          Expanded(
+            child: ListView.builder(
+              itemBuilder: (context, index) =>
+                  _buildDeviceItem(_devices[index], index),
+              itemCount: _devices.length,
+            ),
           ),
-        ),
+          Container(
+            margin: EdgeInsets.only(bottom: 24.0),
+            width: double.infinity,
+            child: IconButton(
+              icon: Icon(Icons.add, color: Colors.white, size: 32.0),
+              tooltip: "添加设备",
+              onPressed: () => _addDevice(),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildDeviceItem(Device device, int index) {
-    if (device == null) return SizedBox();
-
     return GestureDetector(
       onTap: () {
-        getDeviceDetail(device.id);
-        setState(() => _currentSelectedIndex = index);
+        setState(() => _leftMenuSelectedIndex = index);
       },
       child: Container(
-        height: 36,
-        margin: EdgeInsets.symmetric(horizontal: 8),
-        padding: EdgeInsets.symmetric(horizontal: 8),
+        height: 36.0,
+        margin: EdgeInsets.symmetric(horizontal: 8.0),
+        padding: EdgeInsets.symmetric(horizontal: 8.0),
         decoration: BoxDecoration(
-          color: index == _currentSelectedIndex
+          color: index == _leftMenuSelectedIndex
               ? AppColors.transparent_gray
               : Colors.transparent,
-          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderRadius: BorderRadius.all(Radius.circular(6.0)),
         ),
         child: Row(
           children: [
             Icon(
               device.connectedByWifi ? Icons.wifi : Icons.phone_iphone_outlined,
               color: Colors.white,
-              size: 16,
+              size: 16.0,
             ),
             Expanded(
               child: Text(
                 device.name ?? "",
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 13,
+                  fontSize: 13.0,
                   fontWeight: FontWeight.w400,
                 ),
                 maxLines: 1,

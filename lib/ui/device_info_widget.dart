@@ -1,8 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_phone_helper/data/data_manager.dart';
-import 'package:flutter_phone_helper/data/device.dart';
-import 'package:flutter_phone_helper/utils/device_shell.dart';
+import 'package:flutter_phone_helper/process/device.dart';
+import 'package:flutter_phone_helper/process/scrcpy.dart';
+import 'package:flutter_phone_helper/process/system.dart';
 import 'package:flutter_phone_helper/utils/shell.dart';
 import 'package:flutter_phone_helper/widght/imageg_text_button.dart';
 import 'package:flutter_phone_helper/widght/screen_record_dialog.dart';
@@ -14,11 +15,9 @@ import '../widght/wdigets.dart';
 import 'home_page.dart';
 
 class DeviceInfoWidget extends StatefulWidget {
-  const DeviceInfoWidget({Key key, this.device})
-      : assert(device != null),
-        super(key: key);
-
   final Device device;
+
+  const DeviceInfoWidget({required this.device});
 
   @override
   State<StatefulWidget> createState() => _DeviceInfoWidgetState();
@@ -27,10 +26,9 @@ class DeviceInfoWidget extends StatefulWidget {
 class _DeviceInfoWidgetState extends State<DeviceInfoWidget> {
   final textEditingController = TextEditingController();
 
-  void _openUrl(String value) {
-    if (value?.isEmpty ?? true) return;
-    openLink(widget.device.id, value);
-    urlSchemes.add(value);
+  void _openUrl(String url) {
+    widget.device.openLink(url);
+    urlSchemes.add(url);
     setState(() {});
   }
 
@@ -39,8 +37,9 @@ class _DeviceInfoWidgetState extends State<DeviceInfoWidget> {
 
     if (scrcpyExists) {
       int sdkVersion = 21;
+
       try {
-        sdkVersion = int.parse(widget.device.sdk);
+        sdkVersion = int.parse(widget.device.sdk ?? '0');
       } catch (e) {
         print(e);
       }
@@ -68,7 +67,8 @@ class _DeviceInfoWidgetState extends State<DeviceInfoWidget> {
       );
 
       if (download ?? false) {
-        downloadScrcpy()
+        system
+            .downloadScrcpy()
             .withProgressDialog(context)
             .whenComplete(() => _shareScreen());
       }
@@ -77,13 +77,15 @@ class _DeviceInfoWidgetState extends State<DeviceInfoWidget> {
 
   void _screenshotAndShow() async {
     var imagePath =
-        await screenshot(widget.device.id).withProgressDialog(context);
-    openFile(imagePath);
+        await widget.device.screenshot().withProgressDialog(context);
+    if (imagePath != null) {
+      system.openFile(imagePath);
+    }
   }
 
   void _shareDevice() async {
-    var ip = await openTcpConnect(widget.device.id);
-    var tipMessage = ip == null ? "请连接WIFI" : "设备IP地址: $ip";
+    var ip = await widget.device.openTcpConnect();
+    var tipMessage = ip ? "请连接WIFI" : "设备IP地址: $ip";
 
     showAlertDialog(
       context,
@@ -155,16 +157,16 @@ class _DeviceInfoWidgetState extends State<DeviceInfoWidget> {
                     icon: Icons.wifi,
                     text: "断开WIFI",
                     onTap: () async {
-                      await disconnectWifi(widget.device.id);
-                      HomePage.homeKey?.currentState?.refresh();
+                      await widget.device.disconnectWifi();
+                      HomePage.homeKey.currentState?.refresh();
                     },
                   )
                 : IconTextButton(
                     icon: Icons.wifi_off,
                     text: "WIFI连接",
                     onTap: () async {
-                      await connectWifi(widget.device.id);
-                      HomePage.homeKey?.currentState?.refresh();
+                      await widget.device.connectWifi();
+                      HomePage.homeKey.currentState?.refresh();
                     },
                   ),
             Expanded(child: SizedBox()),
@@ -187,7 +189,7 @@ class _DeviceInfoWidgetState extends State<DeviceInfoWidget> {
               text: "录制视频",
               textStyle: TextStyle(color: Colors.white, fontSize: 14),
               onTap: () {
-                if (widget.device.name.contains("HUAWEI")) {
+                if (widget.device.name?.contains("HUAWEI") ?? false) {
                   showAlertDialog(
                     context,
                     message: "当前设备无法录制视频",
@@ -195,7 +197,7 @@ class _DeviceInfoWidgetState extends State<DeviceInfoWidget> {
                     onNegativePressed: () => Navigator.pop(context),
                   );
                 } else {
-                  showScreenRecordDialog(context, widget.device.id);
+                  showScreenRecordDialog(context, widget.device);
                 }
               },
             ),

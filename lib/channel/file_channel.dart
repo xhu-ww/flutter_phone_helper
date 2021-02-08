@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 class FileChannel {
   final MethodChannel channel = MethodChannel('plugins.flutter.file_channel');
 
-  Future<String> getResourcesADBPath() {
+  Future<String?> getResourcesADBPath() {
     if (Platform.isMacOS) {
       return channel.invokeMethod<String>('getResourcesADBPath');
     } else {
@@ -14,16 +14,17 @@ class FileChannel {
     }
   }
 
-  Future<Directory> getStoreFolderPath() async {
-    var path = "";
+  Future<Directory> getDesktopDirectory() async {
     if (Platform.isMacOS) {
       var desktop = await channel.invokeMethod<String>('getDesktopPath');
-      path = "$desktop${Platform.pathSeparator}截屏和录屏";
-    } else {
-      var tempDirectory = await getTemporaryDirectory();
-      path =
-          "${tempDirectory.absolute.path}${Platform.pathSeparator}phone_helper_temp";
+      if (desktop != null) {
+        return Directory(desktop);
+      }
     }
-    return Directory(path);
+    var directory = await getTemporaryDirectory();
+    if (directory == null) {
+      return Future.error("Unable to get the desktop path");
+    }
+    return directory;
   }
 }

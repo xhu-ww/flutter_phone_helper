@@ -1,13 +1,13 @@
 class AppInfo {
   String appId;
-  String versionName;
-  String versionCode;
-  String sdk;
-  String currentActivity;
-  List<String> permissions;
+  String? versionName;
+  String? versionCode;
+  String? sdk;
+  String? currentActivity;
+  List<String>? permissions;
 
   AppInfo({
-    this.appId,
+    required this.appId,
     this.versionName,
     this.versionCode,
     this.sdk,

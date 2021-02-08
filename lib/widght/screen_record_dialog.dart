@@ -3,25 +3,23 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_phone_helper/process/device.dart';
+import 'package:flutter_phone_helper/process/adb.dart';
+import 'package:flutter_phone_helper/process/system.dart';
 import 'package:flutter_phone_helper/src/colors.dart';
-import 'package:flutter_phone_helper/utils/device_shell.dart';
-import 'package:flutter_phone_helper/utils/shell.dart';
 
-Future showScreenRecordDialog(BuildContext context, String deviceId) {
+Future showScreenRecordDialog(BuildContext context, Device device) {
   return showDialog(
     context: context,
-    child: Center(
-      child: ScreenRecordDialog(deviceId: deviceId),
-    ),
+    builder: (BuildContext context) =>
+        Center(child: ScreenRecordDialog(device)),
   );
 }
 
 class ScreenRecordDialog extends StatefulWidget {
-  ScreenRecordDialog({Key key, this.deviceId})
-      : assert(deviceId != null),
-        super(key: key);
+  ScreenRecordDialog(this.device);
 
-  final String deviceId;
+  final Device device;
 
   @override
   State<StatefulWidget> createState() => ScreenRecordDialogState();
@@ -30,7 +28,7 @@ class ScreenRecordDialog extends StatefulWidget {
 class ScreenRecordDialogState extends State<ScreenRecordDialog> {
   bool _onRecording = false;
   int totalTime = 0;
-  Timer _timer;
+  Timer? _timer;
 
   final _bgDecoration = BoxDecoration(
     borderRadius: BorderRadius.all(Radius.circular(10)),
@@ -159,12 +157,14 @@ class ScreenRecordDialogState extends State<ScreenRecordDialog> {
 
   void _screenRecord() {
     setState(() => _onRecording = true);
-    screenRecord(
-      deviceId: widget.deviceId,
-      rate: int.parse(_rateController.text),
-      width: int.parse(_widthController.text),
-      height: int.parse(_heightController.text),
-    ).then((value) => openFile(value)).whenComplete(() {
+    widget.device
+        .screenRecord(
+          rate: int.parse(_rateController.text),
+          width: int.parse(_widthController.text),
+          height: int.parse(_heightController.text),
+        )
+        .then((value) => system.openFile(value))
+        .whenComplete(() {
       if (Navigator.canPop(context)) closeDialog();
     });
 
@@ -176,7 +176,7 @@ class ScreenRecordDialogState extends State<ScreenRecordDialog> {
 
   void _stopScreenRecord() {
     _timer?.cancel();
-    stopScreenRecord(widget.deviceId);
+    widget.device.stopScreenRecord();
   }
 
   void closeDialog() => Navigator.of(context).pop();

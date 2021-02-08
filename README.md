@@ -69,3 +69,9 @@ flutter doctor
  flutter build macos
  flutter build linux
 ```
+
+
+```
+adb shell pm path com.xflag.store.staging.debug
+adb pull /data/app/com.xflag.store.staging.debug-F20YtLzUnSDbqfwjAnI-TA==/base.apk /Users/wangwen/Desktop/
+```
