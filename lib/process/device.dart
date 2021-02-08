@@ -2,9 +2,8 @@ import 'dart:collection';
 import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_phone_helper/process/adb.dart';
+import 'package:flutter_phone_helper/process/device_app.dart';
 import 'package:flutter_phone_helper/process/system.dart';
-
-import '../data/app_info.dart';
 
 class Device {
   String id;
@@ -42,7 +41,7 @@ class Device {
   }
 
   /// adb -s $deviceId shell getprop
-  Future<Device?> init() async {
+  Future<void> init() async {
     var result = await executeShellCommand("getprop");
     if (result.isSuccess) {
       List<String> lines =
@@ -65,9 +64,7 @@ class Device {
       var values = await Future.wait([deviceIp(), devicePhysicalSize()]);
       _ip = values.first;
       _physicalSize = values.last;
-      return this;
     }
-    return null;
   }
 
   /// adb -s $deviceId shell wm size
@@ -178,7 +175,7 @@ class Device {
 
   /// adb -s $deviceId shell dumpsys window | grep mCurrentFocus
   /// adb -s $deviceId shell dumpsys package $packageName
-  Future<AppInfo> currentFocusApp() async {
+  Future<DeviceApp> currentFocusApp() async {
     var appResult =
         await executeShellCommand("dumpsys window | grep mCurrentFocus");
     if (appResult.isSuccess) {
@@ -187,122 +184,28 @@ class Device {
       if (array.length == 2) {
         var packageName = array[0].split(" ").last.trim();
         var activityName = array[1].replaceAll("}", "").trim();
-        String versionCode = "";
-        String versionName = "";
-        String sdk = "";
-        List<String> permissions = [];
-
-        var packageInfoResult =
-            await executeShellCommand("dumpsys package $packageName");
-        if (packageInfoResult.isSuccess) {
-          var lines = packageInfoResult.stdout
-              .split("\n")
-              .map((e) => e.trim())
-              .toList();
-
-          var requestedPermissionsSection = false;
-
-          for (String line in lines) {
-            if (line.startsWith("versionCode")) {
-              var codeArray = line.split(" ");
-              versionCode = codeArray.first.replaceAll("versionCode=", "");
-              var length = codeArray.length;
-              if (length == 3) {
-                sdk = codeArray[1] + " " + codeArray[2];
-              } else if (length == 2) {
-                sdk = codeArray[1];
-              }
-            } else if (line.startsWith("versionName")) {
-              versionName = line.replaceAll("versionName=", "");
-            }
-
-            if (!line.contains(".permission.")) {
-              requestedPermissionsSection = false;
-            }
-            if (line.contains("requested permissions:")) {
-              requestedPermissionsSection = true;
-              continue;
-            }
-            if (requestedPermissionsSection) {
-              var permissionName = line.replaceAll(":", "").trim();
-              permissions.add(permissionName);
-            }
-          }
-        }
-
-        return AppInfo(
+        var app = DeviceApp(
           appId: packageName,
+          device: this,
           currentActivity: activityName,
-          versionCode: versionCode,
-          versionName: versionName,
-          sdk: sdk,
-          permissions: permissions,
         );
+        await app.init();
+        return app;
       }
     }
     return Future.error('Unable to get App');
   }
 
-  /// adb -s $deviceId shell pm clear $appId
-  Future<bool> clearAppData(String appId) async {
-    var shell = "pm clear $appId";
-    var result = await executeShellCommand(shell);
-    return result.isSuccess;
-  }
-
-  /// adb -s $deviceId shell am start -a android.settings.APPLICATION_DETAILS_SETTINGS -d package:$appId
-  Future<bool> openAppSettings(String appId) async {
-    if (appId.isEmpty) return false;
-    var shell =
-        "am start -a android.settings.APPLICATION_DETAILS_SETTINGS -d package:$appId";
-    var result = await executeShellCommand(shell);
-    return result.isSuccess;
-  }
-
-  /// adb -s $deviceId shell pm grant ${appInfo.appId} $permission
-  Future<void> grantPermissions(AppInfo appInfo) async {
-    var permissions = appInfo.permissions;
-    if (permissions != null) {
-      var futures = permissions.map((permission) {
-        var shell = "pm grant ${appInfo.appId} $permission";
-        return executeShellCommand(shell);
-      }).toList();
-
-      await Future.wait(futures);
+  Future<List<String>> allAppIds() async {
+    var appResult = await executeShellCommand("pm list packages -3");
+    var packages = <String>[];
+    if (appResult.isSuccess) {
+      var lines = appResult.stdout.split("\n").first;
+      for (String line in lines) {
+        var package = line.replaceFirst("package:", "");
+        packages.add(package);
+      }
     }
-  }
-
-  /// -s $deviceId shell pm revoke ${appInfo.appId} $permission
-  Future<void> revokePermissions(AppInfo appInfo) async {
-    var permissions = appInfo.permissions;
-    if (permissions != null) {
-      var futures = permissions.map((permission) {
-        var shell = "pm revoke ${appInfo.appId} $permission";
-        return executeShellCommand(shell);
-      }).toList();
-      var results = await Future.wait(futures);
-      // return results.map((e) => e.isSuccess).any((element) => true);
-    }
-  }
-
-  /// adb -s $deviceId uninstall $appId
-  Future<bool> uninstallApp(String appId) async {
-    var shell = "uninstall $appId";
-    var result = await executeShellCommand(shell);
-    return result.isSuccess;
-  }
-
-  /// adb -s $deviceId shell pm path $appId
-  /// adb pull
-  Future<String?> exportApk(String appId) async {
-    var result = await executeShellCommand("pm path $appId");
-    if (result.isSuccess) {
-      var apkPath = result.stdout.replaceFirst("package:", "");
-      var apkFolder = await system.apkStoreFolderPath;
-      var outPutPath = "$apkFolder$appId.apk";
-      await adb.pull(phoneFilePath: apkPath, deskTopFilePath: outPutPath);
-      return apkFolder;
-    }
-    return null;
+    return packages;
   }
 }

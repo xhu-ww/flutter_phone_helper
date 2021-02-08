@@ -24,7 +24,11 @@ class ADB {
       });
       ids.removeAt(0);
 
-      var list = await Future.wait(ids.map((id) => Device(id).init()).toList());
+      var list = await Future.wait(ids.map((id) async {
+        var device = Device(id);
+        await device.init();
+        return device;
+      }).toList());
       list.forEach((element) {
         if (element is Device) devices.add(element);
       });
@@ -39,20 +43,16 @@ class ADB {
   }
 
   /// adb pull
-  Future<bool> pull({
-    required String phoneFilePath,
-    required String deskTopFilePath,
-  }) async {
+  Future<bool> pull(
+      {required String phoneFilePath, required deskTopFilePath}) async {
     var result = await _execute(
         "pull ${phoneFilePath.trim()} ${deskTopFilePath.trim()}");
     return result.isSuccess;
   }
 
   /// adb push
-  Future<bool> push({
-    required String deskTopFilePath,
-    required String phoneFilePath,
-  }) async {
+  Future<bool> push(
+      {required String deskTopFilePath, required phoneFilePath}) async {
     var result = await _execute(
         "push ${deskTopFilePath.trim()} ${phoneFilePath.trim()}");
     return result.isSuccess;

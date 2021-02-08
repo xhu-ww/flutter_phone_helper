@@ -1,8 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_phone_helper/data/data_manager.dart';
 import 'package:flutter_phone_helper/process/device.dart';
-import 'package:flutter_phone_helper/process/scrcpy.dart';
 import 'package:flutter_phone_helper/process/system.dart';
 import 'package:flutter_phone_helper/utils/shell.dart';
 import 'package:flutter_phone_helper/widght/imageg_text_button.dart';
@@ -28,7 +26,6 @@ class _DeviceInfoWidgetState extends State<DeviceInfoWidget> {
 
   void _openUrl(String url) {
     widget.device.openLink(url);
-    urlSchemes.add(url);
     setState(() {});
   }
 
@@ -52,7 +49,7 @@ class _DeviceInfoWidgetState extends State<DeviceInfoWidget> {
           onNegativePressed: () => Navigator.pop(context),
         );
       } else {
-        shareScreen(widget.device.id);
+        system.shareScreen(widget.device.id);
       }
     } else {
       var download = await showAlertDialog<bool>(

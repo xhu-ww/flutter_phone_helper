@@ -27,4 +27,11 @@ void main() {
     expect(find.text('0'), findsNothing);
     expect(find.text('1'), findsOneWidget);
   });
+
+  test("regTest", () {
+    var data = "launchable-activity: name='com.meituan.android.pt.homepage.activity.MainActivity'  label='' icon=''";
+    var regExpStr = RegExp(r"name='(.*?)'");
+    var activity = regExpStr.firstMatch(data)?.group(1);
+    print(activity);
+  });
 }

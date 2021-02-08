@@ -41,7 +41,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     refresh();
-    Timer.periodic(Duration(seconds: 5), (timer) => refresh());
+    // Timer.periodic(Duration(seconds: 5), (timer) => refresh());
   }
 
   Future<void> refresh() async {
